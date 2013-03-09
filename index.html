@@ -1,0 +1,63 @@
+<!doctype html>
+<html ng-app="MyApp">
+<head>
+	<meta charset="utf-8">
+	<title>Garfield viewer</title>
+	<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.0.5/angular.min.js"></script>
+	<style>
+	img { display: block; width: 100%; }
+	.date { padding-top: 1em; display: block; font-size: 200%; }
+	</style>
+	<script>
+		var app = angular.module('MyApp', [])
+		AppController.$inject = ['$scope']
+		function AppController(scope, http, resource){
+			scope.date = new Date().getTime()
+			var daysAgo = function(days){
+				return scope.date - days * 86400000
+			}
+			scope.getPreviousNDays = function(n){
+				var res = []
+				for(var i = 0; i < n; i++) {
+					res.push(daysAgo(i))
+				}
+				return res
+			}
+			scope.prevWeek = function(){
+				scope.date -= 7 * 86400000
+			}
+			scope.nextWeek = function(){
+				scope.date += 7 * 86400000
+			}
+			var lpad = function(n){
+				if (n < 10) {
+					return '0' + n
+				}
+				return n
+			}
+			scope.getUrlForDate = function(date){
+				date = new Date(date)
+				var year = date.getYear() + 1900
+				var month = date.getMonth() + 1
+				var day = date.getDate()
+				var base = "http://picayune.uclick.com/comics/ga/" + year + "/ga" + lpad(year - 2000) + lpad(month) + lpad(day)
+				if (date.getDay() == 0) {
+					base += ".jpg"
+				} else {
+					base += ".gif"
+				}
+				return base
+			}
+		}
+	</script>
+</head>
+<body ng-controller="AppController">
+	<a href ng-click="prevWeek()">Prev week</a>
+	{{date | date:'yyyy-MM-dd'}}
+	<a href ng-click="nextWeek()">Next week</a>
+	<div ng-repeat="date in getPreviousNDays(7)">
+		<span class="date">{{date | date:'yyyy-MM-dd'}}</span>
+		<img class="comic" ng-src="{{getUrlForDate(date)}}">
+	</div>
+</body>
+</html>

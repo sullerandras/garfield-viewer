@@ -1,5 +1,5 @@
 <!doctype html>
-<html ng-app="MyApp">
+<html>
 <head>
 	<meta charset="utf-8">
 	<title>Garfield viewer</title>
@@ -9,55 +9,113 @@
 	.date { padding-top: 1em; display: block; font-size: 200%; }
 	</style>
 	<script>
-		var app = angular.module('MyApp', [])
+		var MILLISECS_IN_DAYS = 24 * 60 * 60 * 1000
 		AppController.$inject = ['$scope']
-		function AppController(scope, http, resource){
-			scope.date = new Date().getTime()
-			var daysAgo = function(days){
-				return scope.date - days * 86400000
+		function AppController(scope){
+			scope.dateToDays = function(date){
+				return Math.floor(date.getTime() / MILLISECS_IN_DAYS)
 			}
-			scope.getPreviousNDays = function(n){
-				var res = []
-				for(var i = 0; i < n; i++) {
-					res.push(daysAgo(i))
-				}
-				return res
+			scope.daysToDate = function(days){
+				return new Date(days * MILLISECS_IN_DAYS)
+			}
+			scope.days = scope.dateToDays(new Date())
+			scope.nextWeek = function(){
+				scope.days += 7
 			}
 			scope.prevWeek = function(){
-				scope.date -= 7 * 86400000
+				scope.days -= 7
 			}
-			scope.nextWeek = function(){
-				scope.date += 7 * 86400000
-			}
-			var lpad = function(n){
-				if (n < 10) {
-					return '0' + n
+			scope.getLastDays = function(n){
+				var arr = []
+				var date = scope.days
+				for(; n >= 1; n--) {
+					arr.push(date)
+					date--
 				}
-				return n
+				return arr
 			}
-			scope.getUrlForDate = function(date){
-				date = new Date(date)
-				var year = date.getYear() + 1900
-				var month = date.getMonth() + 1
-				var day = date.getDate()
-				var base = "http://picayune.uclick.com/comics/ga/" + year + "/ga" + lpad(year - 2000) + lpad(month) + lpad(day)
-				if (date.getDay() == 0) {
-					base += ".jpg"
-				} else {
-					base += ".gif"
-				}
-				return base
+			function lpad2(number) {
+				return (number < 10) ? '0' + number : number
+			}
+			scope.urlForDate = function(days){
+				var date = scope.daysToDate(days)
+				var year = date.getFullYear()
+				var month = lpad2(date.getMonth() + 1)
+				var day = lpad2(date.getDate())
+				var url = "http://picayune.uclick.com/comics/ga/" + year + "/ga" + (year % 100) + month + day
+				url += (date.getDay() == 0) ? ".jpg" : ".gif"
+				return url
 			}
 		}
+	</script>
+	<script>
+		function assertEqual(expected, actual){
+			if (typeof(expected) == 'object') {
+				assertEqual(angular.toJson(expected), angular.toJson(actual))
+			} else if (expected !== actual) {
+				throw "Assertation error: expected '" + expected + "', but got '" + actual + "'"
+			}
+		}
+		;(function(){
+			var scope;
+			function setUp(){
+				scope = {}
+				var ctrl = new AppController(scope)
+			}
+			var todayInDays = Math.floor(new Date().getTime() / MILLISECS_IN_DAYS)
+			var sunday20130310 = Math.floor(new Date('2013-03-10').getTime() / MILLISECS_IN_DAYS)
+
+			;(function dateToDays(){
+				setUp()
+				assertEqual(todayInDays, scope.dateToDays(new Date()))
+				assertEqual(sunday20130310, scope.dateToDays(new Date('2013-03-10')))
+			})()
+			;(function daysToDate(){
+				setUp()
+				assertEqual(new Date('2013-03-10'), scope.daysToDate(sunday20130310))
+			})()
+			;(function assignsDays(){
+				setUp()
+				assertEqual(todayInDays, scope.days)
+			})()
+			;(function nextWeek(){
+				setUp()
+				scope.nextWeek()
+				assertEqual(todayInDays + 7, scope.days)
+			})()
+			;(function prevWeek(){
+				setUp()
+				scope.prevWeek()
+				assertEqual(todayInDays - 7, scope.days)
+			})()
+			;(function getLastDays(){
+				setUp()
+				assertEqual([todayInDays], scope.getLastDays(1))
+				assertEqual([todayInDays, todayInDays - 1], scope.getLastDays(2))
+			})()
+			;(function url_for_sundays_ends_with_jpg(){
+				setUp()
+				assertEqual("http://picayune.uclick.com/comics/ga/2013/ga130310.jpg", scope.urlForDate(sunday20130310))
+			})()
+			;(function url_for_other_days_ends_with_gif(){
+				setUp()
+				var friday19991231 = scope.dateToDays(new Date('1999-12-31'))
+				assertEqual("http://picayune.uclick.com/comics/ga/1999/ga991231.gif", scope.urlForDate(friday19991231))
+			})()
+		})()
+		//if there were no errors, start the application
+		angular.element(document).ready(function() {
+			angular.bootstrap(document)
+		})
 	</script>
 </head>
 <body ng-controller="AppController">
 	<a href ng-click="prevWeek()">Prev week</a>
-	{{date | date:'yyyy-MM-dd'}}
+	{{daysToDate(days) | date:'yyyy-MM-dd'}}
 	<a href ng-click="nextWeek()">Next week</a>
-	<div ng-repeat="date in getPreviousNDays(7)">
-		<span class="date">{{date | date:'yyyy-MM-dd'}}</span>
-		<img class="comic" ng-src="{{getUrlForDate(date)}}">
+	<div ng-repeat="days in getLastDays(7)">
+		<span class="date">{{daysToDate(days) | date:'yyyy-MM-dd'}}</span>
+		<img class="comic" ng-src="{{urlForDate(days)}}">
 	</div>
 </body>
 </html>

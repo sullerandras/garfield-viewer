@@ -12,6 +12,8 @@
 		var MILLISECS_IN_DAYS = 24 * 60 * 60 * 1000
 		AppController.$inject = ['$scope']
 		function AppController(scope){
+			scope.hires = false
+			scope.log = function(s){ console.log(s); return s }
 			scope.dateToDays = function(date){
 				return Math.floor(date.getTime() / MILLISECS_IN_DAYS)
 			}
@@ -38,13 +40,19 @@
 				return (number < 10) ? '0' + number : number
 			}
 			scope.urlForDate = function(days){
-				var date = scope.daysToDate(days)
-				var year = date.getFullYear()
-				var month = lpad2(date.getMonth() + 1)
-				var day = lpad2(date.getDate())
-				var url = "http://picayune.uclick.com/comics/ga/" + year + "/ga" + (year % 100) + month + day
-				url += (date.getDay() == 0) ? ".jpg" : ".gif"
-				return url
+				if (!scope.hires) {
+					var date = scope.daysToDate(days)
+					var year = date.getFullYear()
+					var month = lpad2(date.getMonth() + 1)
+					var day = lpad2(date.getDate())
+					var url = "http://picayune.uclick.com/comics/ga/" + year + "/ga" + (year % 100) + month + day
+					url += (date.getDay() == 0) ? ".jpg" : ".gif"
+					return url
+				} else {
+					var t = days * 86400 - 39600;
+					var url = "http://home.exetel.com.au/amurgshere/garfield/main.php?image="+t+"&lowres=0&comic=garfield"
+					return url
+				}
 			}
 		}
 	</script>
@@ -93,14 +101,28 @@
 				assertEqual([todayInDays], scope.getLastDays(1))
 				assertEqual([todayInDays, todayInDays - 1], scope.getLastDays(2))
 			})()
-			;(function url_for_sundays_ends_with_jpg(){
+			;(function lowres_by_default(){
 				setUp()
+				assertEqual(false, scope.hires)
+			})()
+			;(function lowres_url_for_sundays_ends_with_jpg(){
+				setUp()
+				scope.hires = false
 				assertEqual("http://picayune.uclick.com/comics/ga/2013/ga130310.jpg", scope.urlForDate(sunday20130310))
 			})()
-			;(function url_for_other_days_ends_with_gif(){
+			;(function lowres_url_for_other_days_ends_with_gif(){
 				setUp()
+				scope.hires = false
 				var friday19991231 = scope.dateToDays(new Date('1999-12-31'))
 				assertEqual("http://picayune.uclick.com/comics/ga/1999/ga991231.gif", scope.urlForDate(friday19991231))
+			})()
+			;(function hires_url_from_exetel(){
+				setUp()
+				scope.hires = true
+				var date20130318 = scope.dateToDays(new Date('2013-03-18'))
+				var date20130319 = scope.dateToDays(new Date('2013-03-19'))
+				assertEqual('http://home.exetel.com.au/amurgshere/garfield/main.php?image=1363525200&lowres=0&comic=garfield', scope.urlForDate(date20130318))
+				assertEqual('http://home.exetel.com.au/amurgshere/garfield/main.php?image=1363611600&lowres=0&comic=garfield', scope.urlForDate(date20130319))
 			})()
 		})()
 		//if there were no errors, start the application
@@ -113,6 +135,7 @@
 	<a href ng-click="prevWeek()">Prev week</a>
 	{{daysToDate(days) | date:'yyyy-MM-dd'}}
 	<a href ng-click="nextWeek()">Next week</a>
+	<input type="checkbox" ng-model="hires">Hi resolution images
 	<div ng-repeat="days in getLastDays(7)">
 		<span class="date">{{daysToDate(days) | date:'yyyy-MM-dd'}}</span>
 		<img class="comic" ng-src="{{urlForDate(days)}}">
